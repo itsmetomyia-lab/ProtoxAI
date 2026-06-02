@@ -13,6 +13,8 @@ import atexit
 import signal
 import logging
 
+from .steering import SteeringEngine
+from .debate import DebateEngine, should_debate
 from openai import OpenAI
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -125,6 +127,10 @@ class ProtoxIDE(App):
         self._memory = MemoryGraph()
         self._web    = WebSearch()
 
+                # Steering e Debate
+        self._steering = SteeringEngine()
+        self._debate: DebateEngine | None = None  # creato dopo il client
+
     # ── CLEANUP ──────────────────────────────────────────────────────
 
     def on_unmount(self) -> None:
@@ -175,10 +181,13 @@ class ProtoxIDE(App):
             api_key="protox-local",
             timeout=120.0,
         )
+                # Inizializza debate engine
+        self._debate = DebateEngine(self._client, "qwen2.5-coder-7b-instruct")
         self._reset_context()
         self.query_one("#user-input").focus()
         self._boot_backend_server()
         self.set_interval(10, self._tick_session)
+        
 
         mem_nodes = len(self._memory.nodes)
         if mem_nodes > 0:
@@ -408,20 +417,69 @@ class ProtoxIDE(App):
 
     # ── INPUT PROCESSING ─────────────────────────────────────────────
 
+    # ── INPUT ────────────────────────────────────────────────────────
     def process_input(self, text: str) -> None:
         if self._waiting:
-            self.notify("Attendi la risposta...", severity="warning")
+            self.notify("Wait for response...", severity="warning")
             return
-
-        # Aggiungi alla history senza duplicati consecutivi
         if not self._input_history or self._input_history[-1] != text:
             self._input_history.append(text)
-        if len(self._input_history) > MAX_INPUT_HISTORY:
-            self._input_history = self._input_history[-MAX_INPUT_HISTORY:]
-        self._history_index = -1
 
         if text.startswith("/"):
-            self._handle_command(text)
+            parts = text.split()
+            cmd = parts[0].lower()
+            dispatch = {
+                "/clear":      self.action_clear_chat,
+                "/c":          self.action_clear_chat,
+                "/export":     self.action_export_chat,
+                "/help":       self.action_show_help,
+                "/status":     self._show_status,
+                "/about":      self.action_show_about,
+                "/memory":     self._show_memory_info,
+                "/memclear":   self._clear_memory,
+            }
+            if cmd in dispatch:
+                dispatch[cmd]()
+            elif cmd in ("/search", "/cerca", "/web"):
+                query = " ".join(parts[1:])
+                if query:
+                    self._do_explicit_search(query)
+                else:
+                    self.notify("Usage: /search <query>", severity="error")
+            elif cmd == "/track":
+                self.handle_track_command(parts[1:])
+            elif cmd == "/remember":
+                fact = " ".join(parts[1:])
+                if fact:
+                    self._memory.add_node(fact, "fact", self._memory._extract_tags(fact))
+                    self.notify(f"Remembered: {fact[:50]}")
+                    self.add_chat_bubble("system", f"Memorizzato: {fact}")
+                else:
+                    self.notify("Usage: /remember <fatto>", severity="error")
+            elif cmd == "/forget":
+                self._clear_memory()
+            elif cmd == "/steer":
+                result = self._steering.parse_command(parts[1:])
+                self.add_chat_bubble("system", result)
+            elif cmd == "/debate":
+                if len(parts) < 2:
+                    # Solo /debate -> mostra stato e aiuto
+                    self.add_chat_bubble(
+                        "system",
+                        f"{self._debate.get_status()}\n\n"
+                        f"Comandi:\n"
+                        f"  /debate off    -> mai attivo\n"
+                        f"  /debate auto   -> solo su domande di decisione\n"
+                        f"  /debate on     -> SEMPRE attivo (force)\n"
+                        f"  /debate toggle -> cicla tra le modalita'\n"
+                    )
+                elif parts[1].lower() == "toggle":
+                    new_state = self._debate.toggle()
+                    self.add_chat_bubble("system", new_state)
+                else:
+                    # /debate on | off | auto | force | always
+                    result = self._debate.set_mode(parts[1])
+                    self.add_chat_bubble("system", result)
             return
 
         if self.dashboard_active:
@@ -436,200 +494,174 @@ class ProtoxIDE(App):
         self._set_input_status("thinking")
         self._llm_call_stream(text)
 
-    def _handle_command(self, text: str):
-        parts = text.split()
-        cmd   = parts[0].lower()
-
-        simple_dispatch = {
-            "/clear":    self.action_clear_chat,
-            "/c":        self.action_clear_chat,
-            "/export":   self._do_export,
-            "/help":     self.action_show_help,
-            "/status":   self._show_status,
-            "/about":    self.action_show_about,
-            "/memory":   self._show_memory_info,
-            "/mem":      self._show_memory_info,
-            "/memview":  lambda: self.push_screen(MemoryModal(self._memory)),
-            "/memclear": self._clear_memory,
-            "/forget":   self._clear_memory,
-        }
-
-        if cmd in simple_dispatch:
-            simple_dispatch[cmd]()
-            return
-
-        if cmd in ("/search", "/cerca", "/web"):
-            query = " ".join(parts[1:])
-            if query:
-                self._do_explicit_search(query)
-            else:
-                self.notify("Uso: /search <query>", severity="error")
-
-        elif cmd == "/track":
-            self._handle_track_command(parts[1:])
-
-        elif cmd == "/remember":
-            fact = " ".join(parts[1:])
-            if fact:
-                tags = self._memory._extract_tags(fact)
-                self._memory.add_node(fact, "fact", tags)
-                self.notify(f"Memorizzato: {fact[:50]}")
-                self.add_chat_bubble("system", f"Memorizzato: {fact}")
-            else:
-                self.notify("Uso: /remember <fatto>", severity="error")
-
-        elif cmd == "/nodes":
-            # NUOVA FEATURE: mostra conteggio nodi per categoria
-            stats = self._memory.get_stats_dict()
-            self.add_chat_bubble("system",
-                f"Memoria: {stats['nodes']} nodi | "
-                f"{stats['messages']} messaggi | "
-                f"{stats['compressions']} compressioni | "
-                f"{stats['sessions']} sessioni")
-
-        elif cmd == "/export":
-            self._do_export()
-
-        else:
-            self.notify(f"Comando sconosciuto: {cmd}", severity="error")
-
-    def _handle_track_command(self, args: list[str]):
-        if len(args) < 2:
-            self.notify("Uso: /track CATEGORIA NOME", severity="error")
-            return
-        category    = args[0].upper()
-        entity_name = " ".join(args[1:])
-        data        = load_tracker_data()
-        if category not in data:
-            data[category] = []
-        if entity_name not in data[category]:
-            data[category].append(entity_name)
-            save_tracker_data(data)
-            self.notify(f"Tracciato: {entity_name} → {category}")
-        else:
-            self.notify(f"Già tracciato: {entity_name}")
-
-    # ── WEB SEARCH ESPLICITA ─────────────────────────────────────────
-
     def _do_explicit_search(self, query: str):
-        self.add_chat_bubble("system", f'Ricerca web: "{query}"...')
+        """Ricerca web esplicita — mostra risultati nella chat."""
+        if not self._web.available:
+            self.notify("Web Search non disponibile", severity="error")
+            return
+        self.add_chat_bubble("system", f"Ricerca web: \"{query}\"...")
         self._explicit_search_worker(query)
 
     @work(thread=True)
     def _explicit_search_worker(self, query: str):
         results = self._web.search(query)
         if results:
-            lines = [f'**Risultati per:** "{query}"\n']
+            lines = [f"**Risultati per:** \"{query}\"\n"]
             for i, r in enumerate(results, 1):
                 lines.append(f"**{i}. {r['title']}**")
-                if r["url"]:
+                if r['url']:
                     lines.append(f"   {r['url']}")
-                if r["snippet"]:
+                if r['snippet']:
                     lines.append(f"   {r['snippet']}")
                 lines.append("")
             self.call_from_thread(self.add_chat_bubble, "ai", "\n".join(lines))
         else:
-            self.call_from_thread(self.add_chat_bubble, "system", "Nessun risultato trovato.")
-
-    # ── MEMORY CLEAR ─────────────────────────────────────────────────
+            self.call_from_thread(self.add_chat_bubble, "system", "Nessun risultato trovato")
 
     def _clear_memory(self):
         self._memory.clear()
-        self.notify("Memoria cancellata completamente")
-        self.add_chat_bubble("system", "Memoria persistente cancellata.")
+        self.notify("Memory cleared completely")
+        self.add_chat_bubble("system", "Memoria persistente cancellata")
 
-    # ── CHAT BUBBLE ──────────────────────────────────────────────────
-
-    def add_chat_bubble(self, role: str, content: str) -> "StreamingChatMessage":
+    def add_chat_bubble(self, role: str, content: str) -> StreamingChatMessage:
         container = self.query_one("#chat-scroll")
-        widget    = StreamingChatMessage(role=role, content=content)
+        widget = StreamingChatMessage(role=role, content=content)
         container.mount(widget)
         self.call_after_refresh(lambda: container.scroll_end(animate=False))
         return widget
 
-    # ── LLM STREAMING (CUORE DELL'APP) ───────────────────────────────
-
+    # ── STREAMING con MEMORY + WEB + STEERING + DEBATE ───────────────
     @work(thread=True)
     def _llm_call_stream(self, user_msg: str) -> None:
-        # 1. Memoria
+        # ── 1. Memoria persistente ──
         memory_context = self._memory.get_context(user_msg)
 
-        # 2. Web search (se necessaria)
+        # ── 2. Web search ──
         web_context = ""
         explicit_query = detect_search_intent(user_msg)
-        auto_search    = should_auto_search(user_msg)
+        auto_search = should_auto_search(user_msg)
 
         if explicit_query and self._web.available:
-            self.call_from_thread(self._set_input_status, "searching")
-            self.call_from_thread(self.notify, f"Cerco: {explicit_query[:40]}...", timeout=2)
-            web_context = self._web.search_and_format(explicit_query)
+            search_q = explicit_query
         elif auto_search and self._web.available:
-            self.call_from_thread(self._set_input_status, "searching")
-            sq = build_search_query(user_msg)
-            self.call_from_thread(self.notify, f"Aggiorno info: {sq[:40]}...", timeout=2)
-            web_context = self._web.search_and_format(sq)
+            search_q = build_search_query(user_msg)
+        else:
+            search_q = None
 
-        # 3. Data/ora sistema
+        if search_q:
+            self.call_from_thread(self._set_input_status, "searching")
+            self.call_from_thread(
+                self.add_chat_bubble, "system",
+                f"Web Agent attivato — query: \"{search_q}\""
+            )
+
+            def progress_callback(stage: str, info: str):
+                self.call_from_thread(self.notify, info, timeout=2)
+
+            search_result = self._web.deep_search(search_q, on_progress=progress_callback)
+            web_context = search_result["context"]
+            n_pages = len(search_result["pages"])
+            n_links = len(search_result["links"])
+            self.call_from_thread(
+                self.add_chat_bubble, "system",
+                f"Web Agent: scaricate {n_pages} pagine, {n_links} link totali."
+            )
+
+        # ── 3. Data/ora del sistema ──
         now = datetime.datetime.now()
-        WEEKDAYS_IT = ["lunedì","martedì","mercoledì","giovedì","venerdì","sabato","domenica"]
-        MONTHS_IT   = ["gennaio","febbraio","marzo","aprile","maggio","giugno",
-                       "luglio","agosto","settembre","ottobre","novembre","dicembre"]
+        weekday_it = ["lunedì", "martedì", "mercoledì", "giovedì",
+                      "venerdì", "sabato", "domenica"][now.weekday()]
+        month_it = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
+                    "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"][now.month - 1]
         date_info = (
-            f"Data e ora del sistema:\n"
-            f"- Oggi è {WEEKDAYS_IT[now.weekday()]} {now.day} {MONTHS_IT[now.month-1]} {now.year}\n"
-            f"- Ora: {now.strftime('%H:%M')}\n"
-            f"- ISO: {now.strftime('%Y-%m-%d')}\n"
-            f"Usa queste info se l'utente chiede data, orario o riferimenti temporali."
+            f"Data e ora attuali del sistema utente:\n"
+            f"- Oggi è {weekday_it} {now.day} {month_it} {now.year}\n"
+            f"- Sono le {now.strftime('%H:%M')}\n"
+            f"- Data ISO: {now.strftime('%Y-%m-%d')}"
         )
 
-        # 4. System prompt
+        # ── 4. Steering ──
+        steering_instructions = self._steering.build_instructions()
+
+        # ── 5. Debate Mode ──
+        debate_context = ""
+        if self._debate and self._debate.should_run(user_msg):
+            self.call_from_thread(self._set_input_status, "thinking")
+            self.call_from_thread(
+                self.add_chat_bubble, "system",
+                "Debate Mode attivato — 3 prospettive in analisi parallela..."
+            )
+
+            def debate_progress(stage: str, info: str):
+                self.call_from_thread(self.notify, info, timeout=2)
+
+            agent_extra_context = ""
+            if memory_context:
+                agent_extra_context += memory_context + "\n\n"
+            if web_context:
+                agent_extra_context += web_context
+
+            debate_result = self._debate.run_debate(
+                user_msg,
+                extra_context=agent_extra_context,
+                on_progress=debate_progress,
+            )
+            debate_context = debate_result["judge_context"]
+
+            self.call_from_thread(
+                self.add_chat_bubble, "system",
+                "Sintesi multi-agent completata. Genero risposta finale..."
+            )
+
+        # ── 6. Costruisci system prompt completo ──
         system_parts = [
-            f"Sei {BRAND_NAME}, un assistente AI di sviluppo software professionale. "
+            f"Sei {BRAND_NAME}, un assistente AI di sviluppo software di livello professionale. "
             f"Rispondi in italiano, tono tecnico e conciso. "
-            f"Usa markdown con code blocks quando appropriato. "
-            f"Non rivelare mai il modello sottostante o l'architettura interna. "
-            f"Il tuo motore si chiama {BRAND_ENGINE}.",
+            f"Usa markdown con code blocks quando serve. Sii diretto e preciso. "
+            f"Non menzionare mai il modello sottostante o la tua architettura interna. "
+            f"Il tuo engine si chiama {BRAND_ENGINE}.",
             "",
             date_info,
         ]
 
+        if steering_instructions:
+            system_parts.append("")
+            system_parts.append(steering_instructions)
+
         if memory_context:
-            system_parts += ["", memory_context]
+            system_parts.append("")
+            system_parts.append(memory_context)
 
         if web_context:
-            system_parts += [
-                "",
-                web_context,
-                "",
-                "Usa i risultati web sopra per dare informazioni aggiornate. "
-                "Cita le fonti quando rilevante.",
-            ]
+            system_parts.append("")
+            system_parts.append(web_context)
 
-        system_prompt = "\n".join(system_parts)
+        if debate_context:
+            system_parts.append("")
+            system_parts.append(debate_context)
 
-        # 5. Messaggi (ultime MAX_HISTORY_MESSAGES)
-        msgs = [{"role": "system", "content": system_prompt}]
-        msgs.extend(self._chat_history[-MAX_HISTORY_MESSAGES:])
+        system_instruction = "\n".join(system_parts)
+
+        msgs = [{"role": "system", "content": system_instruction}]
+        msgs.extend(self._chat_history[-10:])
         msgs.append({"role": "user", "content": user_msg})
 
-        # 6. Crea bubble AI e avvia streaming
         ai_widget = self.call_from_thread(self.add_chat_bubble, "ai", "")
         self.call_from_thread(self._set_input_status, "streaming")
+
+        # max_tokens piu' alto se debate o web (risposte piu' ricche)
+        max_tok = 2048 if (debate_context or web_context) else 1024
 
         full_response = ""
         try:
             stream = self._client.chat.completions.create(
-                model=MODEL_NAME,
+                model="qwen2.5-coder-7b-instruct",
                 messages=msgs,
-                temperature=0.7,
-                max_tokens=2048,   # BUG FIX: era 1024, troppo basso
+                temperature=0.5 if web_context else 0.7,
+                max_tokens=max_tok,
                 stream=True,
             )
-
             for chunk in stream:
-                # BUG FIX: guard su choices vuote (edge case llama.cpp)
-                if not chunk.choices:
-                    continue
                 delta = chunk.choices[0].delta
                 if delta and delta.content:
                     full_response += delta.content
@@ -641,35 +673,27 @@ class ProtoxIDE(App):
 
             if ai_widget:
                 self.call_from_thread(ai_widget.finalize_stream, full_response)
-            self.call_from_thread(self._save_to_memory, user_msg, full_response)
+            self.call_from_thread(self._save_memory_state, user_msg, full_response)
 
         except Exception as e:
-            err = f"{BRAND_ENGINE} Error: {e}\nLog: {SERVER_LOG}"
+            err = f"{BRAND_ENGINE} Error: {e}\nCheck: {SERVER_LOG}"
             self.call_from_thread(self.add_chat_bubble, "error", err)
-            # BUG FIX: rimuovi la bubble vuota se c'è stato un errore
-            if ai_widget and not full_response:
+            if ai_widget:
                 try:
                     self.call_from_thread(ai_widget.remove)
                 except Exception:
                     pass
-            log.exception("LLM stream failed")
-
         finally:
             self.call_from_thread(self._reset_wait_state)
 
-    def _save_to_memory(self, user_msg: str, ai_msg: str):
-        """Aggiorna history e memoria persistente. Chiamata dal main thread."""
-        self._chat_history.append({"role": "user",      "content": user_msg})
+    def _save_memory_state(self, user_msg: str, ai_msg: str):
+        self._chat_history.append({"role": "user", "content": user_msg})
         self._chat_history.append({"role": "assistant", "content": ai_msg})
         self._msg_count += 1
-        self._tok_est   += (len(user_msg) + len(ai_msg)) // 4
+        self._tok_est += (len(user_msg) + len(ai_msg)) // 4
 
-        # Mantieni history in memoria limitata
-        if len(self._chat_history) > MAX_HISTORY_MESSAGES * 2:
-            self._chat_history = self._chat_history[-MAX_HISTORY_MESSAGES * 2:]
-
-        # Processa nella memoria persistente (thread-safe)
-        self._memory.process_message("user",      user_msg)
+        # Processa nella memoria persistente
+        self._memory.process_message("user", user_msg)
         self._memory.process_message("assistant", ai_msg)
 
         try:
@@ -678,7 +702,7 @@ class ProtoxIDE(App):
             pass
 
     def _reset_wait_state(self):
-        self._waiting   = False
+        self._waiting = False
         self._streaming = False
         self._set_input_status("ready")
         try:
