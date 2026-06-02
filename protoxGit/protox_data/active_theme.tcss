@@ -1,0 +1,933 @@
+/* ================================================================
+   PROTOX AI v3.0 — ULTRA PREMIUM THEME
+   Generated — Do not edit manually
+   ================================================================ */
+
+/* ── SCREEN ──────────────────────────────────────────────────────── */
+Screen {
+    background: #0e0c0a;
+    color: #e8e3dd;
+    overflow: hidden;
+}
+
+/* ── HEADER ──────────────────────────────────────────────────────── */
+Header {
+    dock: top;
+    height: 1;
+    background: #0e0c0a;
+    color: #ef7c53;
+    text-style: bold;
+    border-bottom: hkey #2a2520;
+}
+Header .header--icon { display: none; }
+
+/* ================================================================
+   FOOTER — 3 righe: accent band + keys + commands
+   ================================================================ */
+#custom-footer {
+    dock: bottom;
+    height: 3;
+    background: #252017;
+    color: #7a7268;
+    layout: vertical;
+    padding: 0;
+    border-top: hkey #ef7c53 50%;
+}
+#footer-accent-line {
+    height: 1;
+    background: #ef7c53;
+    color: #0e0c0a;
+    text-style: bold;
+    text-align: center;
+    padding: 0 2;
+}
+#footer-line-top {
+    height: 1;
+    layout: horizontal;
+    padding: 0 1;
+    background: #252017;
+}
+#footer-line-bot {
+    height: 1;
+    layout: horizontal;
+    padding: 0 1;
+    background: #181512;
+    border-top: solid #2a2520;
+}
+.fkey {
+    color: #0e0c0a;
+    background: #ef7c53;
+    text-style: bold;
+    padding: 0 1;
+}
+.fkey-dim {
+    color: #c8c0b8;
+    background: #1e1a14;
+    text-style: bold;
+    padding: 0 1;
+}
+.flabel {
+    color: #a8a098;
+    padding: 0 1;
+    margin-right: 1;
+}
+.fright {
+    dock: right;
+    color: #ef7c53;
+    text-style: bold;
+    padding: 0 1;
+}
+.fright-dim {
+    dock: right;
+    color: #7a7268;
+    padding: 0 1;
+    text-style: italic;
+}
+
+/* ================================================================
+   MAIN LAYOUT
+   ================================================================ */
+#main-layout {
+    layout: horizontal;
+    height: 1fr;
+}
+
+/* ================================================================
+   SIDEBAR — premium panel
+   ================================================================ */
+#sidebar {
+    width: 34;
+    height: 100%;
+    border-right: tall #2a2520;
+    background: #181512;
+    layout: vertical;
+}
+#sidebar.hidden { display: none; }
+
+#sidebar-header {
+    height: 5;
+    background: #0e0c0a;
+    border-bottom: hkey #ef7c53 50%;
+    layout: vertical;
+    content-align: center middle;
+    padding: 0 1;
+}
+#sidebar-brand-line {
+    height: 1;
+    background: #ef7c53;
+    color: #0e0c0a;
+    text-style: bold;
+    text-align: center;
+    width: 100%;
+}
+#sidebar-brand {
+    color: #ef7c53;
+    text-style: bold;
+    text-align: center;
+    width: 100%;
+    margin-top: 1;
+}
+#sidebar-version {
+    color: #5a524a;
+    text-align: center;
+    width: 100%;
+    text-style: italic;
+}
+#sidebar-engine {
+    color: #00e5b8;
+    text-align: center;
+    width: 100%;
+    text-style: bold;
+}
+#session-body {
+    height: 1fr;
+    padding: 0;
+    layout: vertical;
+    overflow-y: auto;
+}
+
+/* sidebar sections */
+.sb-section {
+    height: auto;
+    margin-bottom: 0;
+    layout: vertical;
+}
+.sb-section-head {
+    color: #ef7c53;
+    background: #0e0c0a;
+    text-style: bold;
+    padding: 0 2;
+    height: 1;
+    border-bottom: solid #2a2520;
+    border-top: solid #2a2520;
+}
+.sb-row {
+    layout: horizontal;
+    height: 1;
+    padding: 0 2;
+    background: #181512;
+}
+.sb-row:hover {
+    background: #252017;
+}
+.sb-key {
+    color: #7a7268;
+    width: 12;
+    text-style: italic;
+}
+.sb-val {
+    color: #c8c0b8;
+    width: 1fr;
+}
+.sb-val-bright {
+    color: #ef7c53;
+    text-style: bold;
+    width: 1fr;
+}
+.sb-val-ok {
+    color: #4ecb71;
+    text-style: bold;
+    width: 1fr;
+}
+.sb-val-warn {
+    color: #e8c41a;
+    text-style: bold;
+    width: 1fr;
+}
+.sb-val-ai {
+    color: #00e5b8;
+    text-style: bold;
+    width: 1fr;
+}
+.sb-divider {
+    height: 1;
+    color: #2a2520;
+}
+.sb-spacer {
+    height: 1;
+    background: #181512;
+}
+
+#sidebar-footer {
+    height: 1;
+    background: #0e0c0a;
+    color: #5a524a;
+    text-align: center;
+    content-align: center middle;
+    border-top: hkey #ef7c53 50%;
+    padding: 0 1;
+    text-style: italic;
+}
+
+/* ================================================================
+   CONTENT AREA
+   ================================================================ */
+#content-area {
+    width: 1fr;
+    height: 100%;
+    layout: vertical;
+}
+
+/* ================================================================
+   DASHBOARD — hero + cards + status
+   ================================================================ */
+#dashboard {
+    width: 100%;
+    height: auto;
+    layout: vertical;
+    background: #0e0c0a;
+}
+#dash-hero {
+    height: auto;
+    background: #0e0c0a;
+    layout: vertical;
+    padding: 1 4;
+    border-bottom: hkey #ef7c53 50%;
+}
+#dash-logo {
+    color: #ef7c53;
+    text-style: bold;
+    text-align: center;
+    width: 100%;
+}
+#dash-tagline {
+    color: #00e5b8;
+    text-align: center;
+    width: 100%;
+    text-style: bold;
+    margin-top: 1;
+}
+#dash-subtitle {
+    color: #7a7268;
+    text-align: center;
+    width: 100%;
+    text-style: italic;
+}
+#dash-accent-bar {
+    height: 1;
+    background: #ef7c53;
+    color: #0e0c0a;
+    text-style: bold;
+    text-align: center;
+}
+#dash-cards {
+    layout: horizontal;
+    height: auto;
+    padding: 1 2;
+    background: #0e0c0a;
+}
+.dash-card {
+    width: 1fr;
+    height: auto;
+    background: #181512;
+    border: tall #2a2520;
+    padding: 1 2;
+    margin: 0 1;
+    layout: vertical;
+}
+.dash-card:hover {
+    border: tall #ef7c53 50%;
+}
+.dash-card-title {
+    color: #ef7c53;
+    text-style: bold;
+    height: 1;
+    border-bottom: solid #2a2520;
+}
+.dash-card-sep {
+    color: #2a2520;
+    height: 1;
+}
+.dash-card-item {
+    color: #a8a098;
+    height: 1;
+    padding: 0 0 0 1;
+}
+.dash-card-item:hover {
+    color: #e8e3dd;
+    background: #252017;
+}
+.dash-card-item-bright {
+    color: #ef7c53;
+    height: 1;
+    text-style: bold;
+    padding: 0 0 0 1;
+}
+.dash-card-item-ai {
+    color: #00e5b8;
+    height: 1;
+    text-style: italic;
+    padding: 0 0 0 1;
+}
+#dash-status-bar {
+    height: 1;
+    background: #181512;
+    layout: horizontal;
+    padding: 0 3;
+    border-top: solid #2a2520;
+    border-bottom: solid #2a2520;
+}
+.dash-status-dot {
+    color: #4ecb71;
+    text-style: bold;
+    width: 3;
+}
+.dash-status-item {
+    color: #5a524a;
+    margin-right: 1;
+    text-style: italic;
+}
+.dash-status-val {
+    color: #ef7c53;
+    text-style: bold;
+    margin-right: 3;
+}
+#dash-quote {
+    height: 2;
+    color: #00e5b8;
+    text-style: italic;
+    text-align: center;
+    padding: 1 4;
+    background: #0e0c0a;
+}
+
+/* ================================================================
+   CHAT — messages area
+   ================================================================ */
+#chat-scroll {
+    height: 1fr;
+    width: 100%;
+    overflow-y: auto;
+    background: #0e0c0a;
+    layout: vertical;
+    padding: 1 3;
+}
+
+.chat-message {
+    width: 100%;
+    height: auto;
+    layout: vertical;
+    margin: 0 0 1 0;
+}
+
+/* ── user message ────────────────────────────────────────────────── */
+.msg-user-header {
+    layout: horizontal;
+    height: 1;
+    margin-bottom: 0;
+}
+.msg-user-icon {
+    color: #ef7c53;
+    text-style: bold;
+    width: 4;
+}
+.msg-user-name {
+    color: #ef7c53;
+    text-style: bold;
+    width: auto;
+}
+.msg-user-time {
+    color: #5a524a;
+    margin-left: 2;
+    width: auto;
+    text-style: italic;
+}
+.chat-bubble-user {
+    background: #252017;
+    border-left: tall #ef7c53;
+    padding: 1 2;
+    color: #e8e3dd;
+    margin: 0 2 0 4;
+}
+
+/* ── ai message ──────────────────────────────────────────────────── */
+.msg-ai-header {
+    layout: horizontal;
+    height: 1;
+    margin-bottom: 0;
+}
+.msg-ai-icon {
+    color: #00e5b8;
+    text-style: bold;
+    width: 4;
+}
+.msg-ai-name {
+    color: #00e5b8;
+    text-style: bold;
+    width: auto;
+}
+.msg-ai-time {
+    color: #5a524a;
+    margin-left: 2;
+    width: auto;
+    text-style: italic;
+}
+.msg-ai-engine {
+    color: #5a524a;
+    text-style: italic;
+    margin-left: 2;
+    width: auto;
+}
+.chat-bubble-ai {
+    background: #181512;
+    border-left: tall #00e5b8;
+    padding: 1 2;
+    margin: 0 2 0 4;
+}
+
+/* ── system message ──────────────────────────────────────────────── */
+.msg-sys-header {
+    layout: horizontal;
+    height: 1;
+}
+.msg-sys-icon {
+    color: #4ecb71;
+    text-style: bold;
+    width: 4;
+}
+.msg-sys-tag {
+    color: #4ecb71;
+    text-style: italic;
+    width: auto;
+}
+.chat-bubble-sys {
+    border-left: tall #4ecb71 50%;
+    padding: 0 2;
+    color: #7a7268;
+    background: #181512;
+    margin: 0 2 0 4;
+    text-style: italic;
+}
+
+/* ── error message ───────────────────────────────────────────────── */
+.msg-err-header {
+    layout: horizontal;
+    height: 1;
+}
+.msg-err-icon {
+    color: #ff4444;
+    text-style: bold;
+    width: 4;
+}
+.msg-err-tag {
+    color: #ff4444;
+    text-style: bold;
+    width: auto;
+}
+.chat-bubble-err {
+    border-left: tall #ff4444;
+    padding: 1 2;
+    color: #ff4444;
+    background: #252017;
+    margin: 0 2 0 4;
+    border: solid #ff4444 30%;
+}
+
+/* ================================================================
+   MARKDOWN rendering inside chat bubbles
+   ================================================================ */
+Markdown {
+    background: transparent;
+    color: #e8e3dd;
+    margin: 0;
+    padding: 0;
+}
+MarkdownFence {
+    background: #080604;
+    color: #00e5b8;
+    border: tall #2a2520;
+    margin: 1 0;
+    padding: 1 2;
+}
+MarkdownCodeBlock {
+    background: #080604;
+    color: #00e5b8;
+    border: tall #2a2520;
+    margin: 1 0;
+    padding: 1 2;
+}
+Markdown > .code_inline {
+    background: #1e1a14;
+    color: #00e5b8;
+    padding: 0 1;
+}
+MarkdownH1 {
+    color: #ef7c53;
+    text-style: bold;
+    margin: 1 0 0 0;
+    padding: 0 0 0 0;
+    border-bottom: solid #ef7c53 40%;
+}
+MarkdownH2 {
+    color: #ef7c53;
+    text-style: bold;
+    margin: 1 0 0 0;
+}
+MarkdownH3 {
+    color: #d4693f;
+    text-style: bold;
+    margin: 1 0 0 0;
+}
+MarkdownH4 {
+    color: #00e5b8;
+    text-style: bold italic;
+    margin: 1 0 0 0;
+}
+MarkdownBullet {
+    color: #ef7c53;
+}
+MarkdownBlockQuote {
+    border-left: tall #00e5b8 60%;
+    background: #1e1a14;
+    color: #c8c0b8;
+    padding: 0 2;
+    margin: 1 0;
+}
+MarkdownHorizontalRule {
+    color: #2a2520;
+}
+MarkdownTable {
+    background: #181512;
+    color: #e8e3dd;
+    border: solid #2a2520;
+    margin: 1 0;
+    padding: 0 1;
+}
+
+/* ================================================================
+   INPUT AREA — status line + prompt
+   ================================================================ */
+#input-wrapper {
+    height: auto;
+    layout: vertical;
+    background: #181512;
+    border-top: hkey #ef7c53 50%;
+}
+#input-status-line {
+    height: 1;
+    layout: horizontal;
+    padding: 0 3;
+    background: #0e0c0a;
+    border-bottom: solid #2a2520;
+}
+.input-status-text {
+    color: #5a524a;
+    width: auto;
+    text-style: italic;
+}
+.input-status-ready {
+    color: #4ecb71;
+    text-style: bold;
+    width: auto;
+}
+.input-status-busy {
+    color: #e8c41a;
+    text-style: bold;
+    width: auto;
+}
+.input-status-stream {
+    color: #00e5b8;
+    text-style: bold italic;
+    width: auto;
+}
+#input-container {
+    height: auto;
+    min-height: 3;
+    max-height: 12;
+    background: #181512;
+    layout: horizontal;
+    padding: 0 2;
+}
+#prompt-sym {
+    color: #ef7c53;
+    text-style: bold;
+    width: 4;
+    content-align: left middle;
+    height: 100%;
+}
+ProtoxInput {
+    width: 1fr;
+    height: auto;
+    min-height: 3;
+    border: none;
+    background: transparent;
+    color: #e8e3dd;
+    padding: 0;
+}
+ProtoxInput:focus {
+    border: none;
+}
+
+/* ================================================================
+   HELP MODAL — premium scrollable reference
+   ================================================================ */
+HelpModal {
+    align: center middle;
+}
+#help-overlay {
+    background: #0e0c0a;
+    border: tall #ef7c53;
+    width: 70;
+    height: auto;
+    max-height: 42;
+    padding: 0;
+}
+#help-modal-header {
+    background: #ef7c53;
+    color: #0e0c0a;
+    text-style: bold;
+    text-align: center;
+    padding: 0 2;
+    height: 1;
+}
+#help-brand-bar {
+    height: 1;
+    background: #181512;
+    color: #00e5b8;
+    text-align: center;
+    text-style: italic;
+    border-bottom: solid #2a2520;
+}
+#help-body {
+    padding: 1 2;
+    layout: vertical;
+    height: auto;
+    max-height: 34;
+    overflow-y: auto;
+    background: #0e0c0a;
+}
+.help-section-title {
+    color: #ef7c53;
+    background: #181512;
+    text-style: bold;
+    margin-top: 1;
+    padding: 0 2;
+    height: 1;
+    border-left: tall #ef7c53;
+}
+.help-section-sub {
+    color: #7a7268;
+    text-style: italic;
+    padding: 0 2;
+    height: 1;
+    margin-bottom: 0;
+}
+.help-row {
+    layout: horizontal;
+    height: 1;
+    padding: 0 2;
+}
+.help-row:hover {
+    background: #252017;
+}
+.help-key {
+    color: #ef7c53;
+    text-style: bold;
+    width: 20;
+}
+.help-desc {
+    color: #c8c0b8;
+    width: 1fr;
+}
+.help-divider {
+    color: #2a2520;
+    height: 1;
+    margin: 0 2;
+}
+.help-tip-icon {
+    color: #00e5b8;
+    text-style: bold;
+    width: 4;
+}
+.help-tip-text {
+    color: #00e5b8;
+    text-style: italic;
+    width: 1fr;
+}
+#help-modal-footer {
+    background: #181512;
+    color: #7a7268;
+    text-align: center;
+    height: 1;
+    border-top: solid #2a2520;
+    padding: 0 1;
+    text-style: italic;
+}
+
+/* ================================================================
+   THEME MODAL — preview + list + custom
+   ================================================================ */
+ThemeModal {
+    align: center middle;
+}
+#theme-overlay {
+    background: #0e0c0a;
+    border: tall #ef7c53;
+    width: 68;
+    height: auto;
+    max-height: 42;
+    padding: 0;
+}
+#theme-modal-header {
+    background: #ef7c53;
+    color: #0e0c0a;
+    text-style: bold;
+    text-align: center;
+    padding: 0 2;
+    height: 1;
+}
+#theme-brand-bar {
+    height: 1;
+    background: #181512;
+    color: #00e5b8;
+    text-align: center;
+    text-style: italic;
+    border-bottom: solid #2a2520;
+}
+#theme-modal-body {
+    padding: 1 2;
+    layout: vertical;
+    background: #0e0c0a;
+}
+#theme-preview {
+    height: 5;
+    background: #181512;
+    border: tall #2a2520;
+    layout: vertical;
+    padding: 0 2;
+    margin-bottom: 1;
+}
+#preview-title {
+    color: #ef7c53;
+    text-style: bold;
+    height: 1;
+}
+#preview-bar {
+    height: 1;
+    layout: horizontal;
+    margin-top: 1;
+}
+#preview-codes {
+    color: #7a7268;
+    height: 1;
+    text-style: italic;
+}
+.preview-swatch-acc {
+    background: #ef7c53;
+    color: #0e0c0a;
+    text-style: bold;
+    width: 10;
+    height: 1;
+    margin-right: 1;
+    text-align: center;
+}
+.preview-swatch-ai {
+    background: #00e5b8;
+    color: #0e0c0a;
+    text-style: bold;
+    width: 10;
+    height: 1;
+    margin-right: 1;
+    text-align: center;
+}
+.preview-swatch-bg {
+    background: #0e0c0a;
+    color: #e8e3dd;
+    border: solid #2a2520;
+    width: 10;
+    height: 1;
+    margin-right: 1;
+    text-align: center;
+}
+.preview-swatch-txt {
+    background: #e8e3dd;
+    color: #0e0c0a;
+    width: 10;
+    height: 1;
+    text-align: center;
+}
+#theme-section-label {
+    color: #ef7c53;
+    background: #181512;
+    text-style: bold;
+    padding: 0 2;
+    height: 1;
+    border-left: tall #ef7c53;
+}
+#theme-list {
+    height: auto;
+    max-height: 18;
+    background: #0e0c0a;
+    border: tall #2a2520;
+    margin-bottom: 1;
+}
+ListView > ListItem {
+    background: transparent;
+    color: #c8c0b8;
+    padding: 0 2;
+    height: 2;
+}
+ListView > ListItem:hover {
+    background: #252017;
+    color: #e8e3dd;
+}
+ListView > ListItem.--highlight {
+    background: #ef7c53 20%;
+    color: #ef7c53;
+    text-style: bold;
+}
+#custom-section-label {
+    color: #00e5b8;
+    background: #181512;
+    text-style: bold;
+    padding: 0 2;
+    height: 1;
+    margin-top: 1;
+    border-left: tall #00e5b8;
+}
+#custom-accent-input {
+    border: solid #2a2520;
+    background: #181512;
+    color: #e8e3dd;
+    margin-top: 1;
+    height: 3;
+}
+#custom-accent-input:focus {
+    border: tall #ef7c53;
+    background: #252017;
+}
+#theme-hint {
+    color: #5a524a;
+    text-align: center;
+    margin-top: 1;
+    text-style: italic;
+}
+#theme-modal-footer {
+    background: #181512;
+    color: #7a7268;
+    text-align: center;
+    height: 1;
+    border-top: solid #2a2520;
+    padding: 0 1;
+    text-style: italic;
+}
+
+/* ================================================================
+   ABOUT MODAL
+   ================================================================ */
+AboutModal {
+    align: center middle;
+}
+#about-overlay {
+    background: #0e0c0a;
+    border: tall #ef7c53;
+    width: 58;
+    height: auto;
+    padding: 0;
+}
+#about-header {
+    background: #ef7c53;
+    color: #0e0c0a;
+    text-style: bold;
+    text-align: center;
+    padding: 0 2;
+    height: 1;
+}
+#about-body {
+    padding: 2 3;
+    layout: vertical;
+    background: #0e0c0a;
+}
+#about-logo {
+    color: #ef7c53;
+    text-style: bold;
+    text-align: center;
+    margin-bottom: 1;
+}
+#about-info {
+    color: #c8c0b8;
+    text-align: center;
+}
+#about-separator {
+    color: #2a2520;
+    margin: 1 0;
+}
+#about-credits {
+    color: #00e5b8;
+    text-align: center;
+    text-style: italic;
+}
+#about-footer {
+    background: #181512;
+    color: #7a7268;
+    text-align: center;
+    height: 1;
+    border-top: solid #2a2520;
+    padding: 0 1;
+    text-style: italic;
+}
+
+/* ── UTILITY ─────────────────────────────────────────────────────── */
+.hidden {
+    display: none;
+}
