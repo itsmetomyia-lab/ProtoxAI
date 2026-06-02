@@ -1,8 +1,8 @@
 {
-  "total_messages_processed": 0,
-  "total_nodes_created": 0,
-  "total_nodes_pruned": 0,
+  "total_messages": 0,
+  "total_nodes": 0,
+  "total_pruned": 0,
+  "total_merges": 0,
   "total_compressions": 0,
-  "last_compression": 0.0,
-  "sessions_count": 0
+  "sessions": 0
 }
