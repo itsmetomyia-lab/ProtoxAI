@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-PROTOX AI — App principale.
+PROTOX AI — App principale con Memory + Web Search.
 """
 
 import sys
@@ -33,6 +33,8 @@ from .widgets import (
 )
 from .modals import HelpModal, AboutModal
 from .footer import ProtoxFooter
+from .memory import MemoryGraph
+from .web_search import WebSearch, detect_search_intent, should_auto_search, build_search_query
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -64,16 +66,13 @@ def _kill_server_global():
         try:
             subprocess.run(
                 ["taskkill", "/F", "/IM", "llama-server.exe"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=5,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
             )
         except Exception:
             pass
 
 
 atexit.register(_kill_server_global)
-
 if sys.platform != "win32":
     signal.signal(signal.SIGTERM, lambda *_: (_kill_server_global(), sys.exit(0)))
     signal.signal(signal.SIGHUP, lambda *_: (_kill_server_global(), sys.exit(0)))
@@ -112,11 +111,17 @@ class ProtoxIDE(App):
         self._tok_est   = 0
         self._session_start = datetime.datetime.now()
 
+        # ── NUOVI MODULI ──
+        self._memory = MemoryGraph()
+        self._web = WebSearch()
+
     # ── CLEANUP ──────────────────────────────────────────────────────
     def on_unmount(self) -> None:
+        self._memory.flush()
         self._cleanup_server()
 
     def action_quit(self) -> None:
+        self._memory.flush()
         self._cleanup_server()
         super().action_quit()
 
@@ -144,9 +149,7 @@ class ProtoxIDE(App):
             try:
                 subprocess.run(
                     ["taskkill", "/F", "/IM", "llama-server.exe"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    timeout=5,
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
                 )
             except Exception:
                 pass
@@ -163,6 +166,15 @@ class ProtoxIDE(App):
         self._boot_backend_server()
         self.set_interval(10, self._tick_session)
 
+        # Notifica stato moduli
+        mem_nodes = len(self._memory.nodes)
+        if mem_nodes > 0:
+            self.notify(f"Memory: {mem_nodes} nodi caricati", timeout=3)
+        if self._web.available:
+            self.notify("Web Search: attivo", timeout=2)
+        else:
+            self.notify("Web Search: pip install duckduckgo-search", severity="warning", timeout=5)
+
     def _tick_session(self):
         try:
             self.query_one(SessionSidebar).update_stats(
@@ -176,9 +188,7 @@ class ProtoxIDE(App):
         global _global_server_process, _global_log_handle
 
         if is_port_open(HOST, PORT):
-            self.call_from_thread(
-                self.notify, f"{BRAND_ENGINE} already running", timeout=3
-            )
+            self.call_from_thread(self.notify, f"{BRAND_ENGINE} already running", timeout=3)
             self.call_from_thread(self._set_sidebar_server_status, True)
             return
 
@@ -209,21 +219,15 @@ class ProtoxIDE(App):
             _global_log_handle = self._log_file_handle
             flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             self._server_process = subprocess.Popen(
-                cmd,
-                stdout=self._log_file_handle,
-                stderr=subprocess.STDOUT,
-                creationflags=flags,
+                cmd, stdout=self._log_file_handle,
+                stderr=subprocess.STDOUT, creationflags=flags,
             )
             _global_server_process = self._server_process
 
             for _ in range(30):
                 time.sleep(1)
                 if self._server_process.poll() is not None:
-                    self.call_from_thread(
-                        self.notify,
-                        f"Engine crashed. Check: {SERVER_LOG}",
-                        severity="error",
-                    )
+                    self.call_from_thread(self.notify, f"Engine crashed. Check: {SERVER_LOG}", severity="error")
                     return
                 if is_port_open(HOST, PORT):
                     self.call_from_thread(
@@ -234,15 +238,13 @@ class ProtoxIDE(App):
                     self.call_from_thread(
                         self.add_chat_bubble, "system",
                         f"{BRAND_ENGINE} online  |  {BRAND_MODEL}  |  "
-                        f"GPU {GPU_LAYERS}L  |  CTX {CONTEXT_SIZE}  |  Streaming ON",
+                        f"GPU {GPU_LAYERS}L  |  CTX {CONTEXT_SIZE}  |  "
+                        f"Memory {len(self._memory.nodes)} nodi  |  "
+                        f"Web {'ON' if self._web.available else 'OFF'}",
                     )
                     self.call_from_thread(self._set_sidebar_server_status, True)
                     return
-            self.call_from_thread(
-                self.notify,
-                f"{BRAND_ENGINE} slow to start...",
-                severity="warning",
-            )
+            self.call_from_thread(self.notify, f"{BRAND_ENGINE} slow to start...", severity="warning")
         except Exception as e:
             self.call_from_thread(self.notify, f"Boot error: {e}", severity="error")
 
@@ -319,7 +321,7 @@ class ProtoxIDE(App):
         except Exception:
             pass
         self._set_input_status("ready")
-        self.notify("Conversation cleared")
+        self.notify("Conversation cleared (memory preserved)")
 
     def action_export_chat(self) -> None:
         if not self._chat_history:
@@ -339,13 +341,20 @@ class ProtoxIDE(App):
         online = is_port_open(HOST, PORT)
         status = "ONLINE" if online else "OFFLINE"
         up = uptime_str(self._session_start)
+        mem_info = self._memory.get_info()
         self.add_chat_bubble(
             "system",
             f"{BRAND_ENGINE} {status}  |  {HOST}:{PORT}  |  "
             f"GPU:{GPU_LAYERS}L  CTX:{CONTEXT_SIZE}  |  "
             f"Session: {self._msg_count} msgs  ~{self._tok_est} tok  |  "
-            f"Uptime: {up}",
+            f"Uptime: {up}\n"
+            f"Memory: {mem_info}\n"
+            f"Web Search: {'Available' if self._web.available else 'Not installed'}",
         )
+
+    def _show_memory_info(self):
+        info = self._memory.get_info()
+        self.add_chat_bubble("system", f"Memory Graph: {info}")
 
     # ── INPUT STATUS ─────────────────────────────────────────────────
     def _set_input_status(self, state: str):
@@ -363,6 +372,9 @@ class ProtoxIDE(App):
             elif state == "streaming":
                 w.update("Streaming...")
                 w.add_class("input-status-stream")
+            elif state == "searching":
+                w.update("Searching web...")
+                w.add_class("input-status-busy")
         except Exception:
             pass
 
@@ -378,17 +390,35 @@ class ProtoxIDE(App):
             parts = text.split()
             cmd = parts[0].lower()
             dispatch = {
-                "/clear": self.action_clear_chat,
-                "/c": self.action_clear_chat,
-                "/export": self.action_export_chat,
-                "/help": self.action_show_help,
-                "/status": self._show_status,
-                "/about": self.action_show_about,
+                "/clear":      self.action_clear_chat,
+                "/c":          self.action_clear_chat,
+                "/export":     self.action_export_chat,
+                "/help":       self.action_show_help,
+                "/status":     self._show_status,
+                "/about":      self.action_show_about,
+                "/memory":     self._show_memory_info,
+                "/memclear":   self._clear_memory,
             }
             if cmd in dispatch:
                 dispatch[cmd]()
+            elif cmd in ("/search", "/cerca", "/web"):
+                query = " ".join(parts[1:])
+                if query:
+                    self._do_explicit_search(query)
+                else:
+                    self.notify("Usage: /search <query>", severity="error")
             elif cmd == "/track":
                 self.handle_track_command(parts[1:])
+            elif cmd == "/remember":
+                fact = " ".join(parts[1:])
+                if fact:
+                    self._memory.add_node(fact, "fact", self._memory._extract_tags(fact))
+                    self.notify(f"Remembered: {fact[:50]}")
+                    self.add_chat_bubble("system", f"Memorizzato: {fact}")
+                else:
+                    self.notify("Usage: /remember <fatto>", severity="error")
+            elif cmd == "/forget":
+                self._clear_memory()
             else:
                 self.notify(f"Unknown command: {cmd}", severity="error")
             return
@@ -405,6 +435,35 @@ class ProtoxIDE(App):
         self._set_input_status("thinking")
         self._llm_call_stream(text)
 
+    def _do_explicit_search(self, query: str):
+        """Ricerca web esplicita — mostra risultati nella chat."""
+        if not self._web.available:
+            self.notify("Web Search non disponibile: pip install duckduckgo-search", severity="error")
+            return
+        self.add_chat_bubble("system", f"Ricerca web: \"{query}\"...")
+        self._explicit_search_worker(query)
+
+    @work(thread=True)
+    def _explicit_search_worker(self, query: str):
+        results = self._web.search(query)
+        if results:
+            lines = [f"**Risultati per:** \"{query}\"\n"]
+            for i, r in enumerate(results, 1):
+                lines.append(f"**{i}. {r['title']}**")
+                if r['url']:
+                    lines.append(f"   {r['url']}")
+                if r['snippet']:
+                    lines.append(f"   {r['snippet']}")
+                lines.append("")
+            self.call_from_thread(self.add_chat_bubble, "ai", "\n".join(lines))
+        else:
+            self.call_from_thread(self.add_chat_bubble, "system", "Nessun risultato trovato")
+
+    def _clear_memory(self):
+        self._memory.clear()
+        self.notify("Memory cleared completely")
+        self.add_chat_bubble("system", "Memoria persistente cancellata")
+
     def add_chat_bubble(self, role: str, content: str) -> StreamingChatMessage:
         container = self.query_one("#chat-scroll")
         widget = StreamingChatMessage(role=role, content=content)
@@ -412,16 +471,80 @@ class ProtoxIDE(App):
         self.call_after_refresh(lambda: container.scroll_end(animate=False))
         return widget
 
-    # ── STREAMING ────────────────────────────────────────────────────
+    # ── STREAMING con MEMORY + WEB ───────────────────────────────────
     @work(thread=True)
     def _llm_call_stream(self, user_msg: str) -> None:
-        system_instruction = (
+        # ── 1. Recupera contesto dalla memoria ──
+        memory_context = self._memory.get_context(user_msg)
+
+        # ── 2. Decidi se cercare sul web ──
+        web_context = ""
+
+        # Solo se l'utente lo chiede esplicitamente OPPURE
+        # se è una domanda che l'LLM probabilmente non sa
+        explicit_query = detect_search_intent(user_msg)
+        auto_search = should_auto_search(user_msg)
+
+        if explicit_query and self._web.available:
+            self.call_from_thread(self._set_input_status, "searching")
+            self.call_from_thread(
+                self.notify, f"Cerco: {explicit_query[:40]}...", timeout=2
+            )
+            web_context = self._web.search_and_format(explicit_query)
+        elif auto_search and self._web.available:
+            self.call_from_thread(self._set_input_status, "searching")
+            search_q = build_search_query(user_msg)
+            self.call_from_thread(
+                self.notify, f"Info aggiornate: {search_q[:40]}...", timeout=2
+            )
+            web_context = self._web.search_and_format(search_q)
+
+        # ── 3. Data/ora del sistema (sempre disponibili) ──
+        now = datetime.datetime.now()
+        weekday_it = [
+            "lunedì", "martedì", "mercoledì", "giovedì",
+            "venerdì", "sabato", "domenica"
+        ][now.weekday()]
+        month_it = [
+            "gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
+            "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"
+        ][now.month - 1]
+        date_info = (
+            f"Data e ora attuali del sistema utente:\n"
+            f"- Oggi è {weekday_it} {now.day} {month_it} {now.year}\n"
+            f"- Sono le {now.strftime('%H:%M')}\n"
+            f"- Data formato ISO: {now.strftime('%Y-%m-%d')}\n"
+            f"- Timezone: locale del sistema\n"
+            f"Usa queste informazioni se l'utente chiede data, giorno, ora o riferimenti temporali."
+        )
+
+        # ── 4. Costruisci system prompt ──
+        system_parts = [
             f"Sei {BRAND_NAME}, un assistente AI di sviluppo software di livello professionale. "
             f"Rispondi in italiano, tono tecnico e conciso. "
             f"Usa markdown con code blocks quando serve. Sii diretto e preciso. "
             f"Non menzionare mai il modello sottostante o la tua architettura interna. "
-            f"Il tuo engine si chiama {BRAND_ENGINE}."
-        )
+            f"Il tuo engine si chiama {BRAND_ENGINE}.",
+            "",
+            date_info,
+        ]
+
+        if memory_context:
+            system_parts.append("")
+            system_parts.append(memory_context)
+
+        if web_context:
+            system_parts.append("")
+            system_parts.append(web_context)
+            system_parts.append("")
+            system_parts.append(
+                "Usa i risultati web sopra per dare informazioni aggiornate e accurate. "
+                "Se i risultati sono utili, basa la risposta su quelli. "
+                "Cita le fonti quando rilevante."
+            )
+
+        system_instruction = "\n".join(system_parts)
+
         msgs = [{"role": "system", "content": system_instruction}]
         msgs.extend(self._chat_history[-10:])
         msgs.append({"role": "user", "content": user_msg})
@@ -468,6 +591,11 @@ class ProtoxIDE(App):
         self._chat_history.append({"role": "assistant", "content": ai_msg})
         self._msg_count += 1
         self._tok_est += (len(user_msg) + len(ai_msg)) // 4
+
+        # ── Processa nella memoria persistente ──
+        self._memory.process_message("user", user_msg)
+        self._memory.process_message("assistant", ai_msg)
+
         try:
             self.query_one(SessionSidebar).update_stats(self._msg_count, self._tok_est)
         except Exception:
